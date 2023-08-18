@@ -56,6 +56,7 @@
 #include <ImageHelperOpenCV.h>
 #include <ImageProcessingInterface.h>
 #include <memory>
+#include <chrono>
 
 
 int nFrameWidth = 320;
@@ -171,6 +172,8 @@ public:
 			output = input;
 		}
 
+		// Start the timer
+		auto start = std::chrono::high_resolution_clock::now();
 
 		switch (algo)
 		{
@@ -258,6 +261,13 @@ public:
 			break;
 		}
 
+		// End the timer
+		auto end = std::chrono::high_resolution_clock::now();
+		// Calculate the duration in microseconds
+		auto durationMicro = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+
+		// Convert microseconds to milliseconds
+		double durationMillis = durationMicro.count() * 0.001;
 		// DRAW STUFF ONLY HERE
 		Clear(olc::DARK_BLUE);
 		DrawFrame(input, 10, 10);
@@ -326,6 +336,7 @@ public:
 			break;
 		}
 		DrawString(10, startPos + 50, ImplementationLibraryName);
+		DrawString(320, startPos + 50, "Time per frame s: "+ std::to_string(durationMillis));
 		if (GetKey(olc::Key::ESCAPE).bPressed) return false;
 		return true;
 	}
