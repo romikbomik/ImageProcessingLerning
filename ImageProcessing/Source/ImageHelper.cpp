@@ -2,13 +2,13 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-void ImageHelper::ThresholdMethod(const frame& Input, frame& Output, const float ThresholdValue)
+void ImageHelper::ThresholdMethod(const frame& Input, frame& Output, const uint8_t ThresholdValue)
 {
 	thresholdBinarization(Input, Output, ThresholdValue);
 	// Perform threshold per pixel
 	for (int i = 0; i < Output.nFrameWidth; i++)
 		for (int j = 0; j < Output.nFrameHeight; j++)
-			Output.set(i, j, Input.get(i, j) >= ThresholdValue ? 1.0f : 0.0f);
+			Output.set(i, j, Input.get(i, j) >= ThresholdValue ? 255 : 0);
 }
 
 void ImageHelper::MotionDetection(const frame& Input, frame& Output)
@@ -50,7 +50,11 @@ void ImageHelper::ApplyKernel(const frame& Input, frame& Output, const std::vect
 				for (int m = -1; m < +2; m++)
 						fSum += Input.get(i + n, j + m) * Kernel.at((m + 1) * 3 + (n + 1));
 
-			Output.set(i, j, fSum);
+			//check if value limits
+			fSum = fSum > 255 ? 255 : fSum;
+			fSum = fSum < 0 ? 0 : fSum;
+
+			Output.set(i, j, static_cast<uint8_t>(fSum));
 		}
 }
 
@@ -68,7 +72,6 @@ void ImageHelper::Soblel(const frame& Input, frame& Output)
 					fKernelSumH += Input.get(i + n, j + m) * IImgaeProcessor::kernel_sobel_h[(m + 1) * 3 + (n + 1)];
 					fKernelSumV += Input.get(i + n, j + m) * IImgaeProcessor::kernel_sobel_v[(m + 1) * 3 + (n + 1)];
 				}
-
 			Output.set(i, j, fabs((fKernelSumH + fKernelSumV) / 2.0f));
 		}
 }
@@ -78,7 +81,7 @@ void ImageHelper::MorphOperation(const frame& Input, frame& Output, IImgaeProces
 	frame Activity = frame(Output.nFrameWidth, Output.nFrameHeight);
 
 	// Threshold First to binarise image
-	thresholdBinarization(Input, Activity, 0.5f);
+	thresholdBinarization(Input, Activity, 127);
 	switch (operation)
 	{
 	case IImgaeProcessor::MORPHOP::DILATION:
@@ -89,17 +92,17 @@ void ImageHelper::MorphOperation(const frame& Input, frame& Output, IImgaeProces
 			for (int i = 0; i < Output.nFrameWidth; i++)
 				for (int j = 0; j < Output.nFrameHeight; j++)
 				{
-					if (Activity.get(i, j) == 1.0f)
+					if (Activity.get(i, j) == 255)
 					{
-						Output.set(i, j, 1.0f);
-						Output.set(i - 1, j, 1.0f);
-						Output.set(i + 1, j, 1.0f);
-						Output.set(i, j - 1, 1.0f);
-						Output.set(i, j + 1, 1.0f);
-						Output.set(i - 1, j - 1, 1.0f);
-						Output.set(i + 1, j + 1, 1.0f);
-						Output.set(i + 1, j - 1, 1.0f);
-						Output.set(i - 1, j + 1, 1.0f);
+						Output.set(i, j, 255);
+						Output.set(i - 1, j, 255);
+						Output.set(i + 1, j, 255);
+						Output.set(i, j - 1, 255);
+						Output.set(i, j + 1, 255);
+						Output.set(i - 1, j - 1, 255);
+						Output.set(i + 1, j + 1, 255);
+						Output.set(i + 1, j - 1, 255);
+						Output.set(i - 1, j + 1, 255);
 					}
 				}
 
@@ -115,12 +118,12 @@ void ImageHelper::MorphOperation(const frame& Input, frame& Output, IImgaeProces
 				for (int j = 0; j < Output.nFrameHeight; j++)
 				{
 
-					float sum = Activity.get(i - 1, j) + Activity.get(i + 1, j) + Activity.get(i, j - 1) + Activity.get(i, j + 1) +
+					float sum =  Activity.get(i - 1, j) + Activity.get(i + 1, j) + Activity.get(i, j - 1) + Activity.get(i, j + 1) +
 						Activity.get(i - 1, j - 1) + Activity.get(i + 1, j + 1) + Activity.get(i + 1, j - 1) + Activity.get(i - 1, j + 1);
 
-					if (Activity.get(i, j) == 1.0f && sum < 8.0f)
+					if (Activity.get(i, j) == 255 && sum < 8 * 255 )
 					{
-						Output.set(i, j, 0.0f);
+						Output.set(i, j, 0);
 					}
 				}
 			//activity = output;
@@ -133,16 +136,15 @@ void ImageHelper::MorphOperation(const frame& Input, frame& Output, IImgaeProces
 			for (int j = 0; j < Output.nFrameHeight; j++)
 			{
 
-				float sum = Activity.get(i - 1, j) + Activity.get(i + 1, j) + Activity.get(i, j - 1) + Activity.get(i, j + 1) +
+				float sum = Activity.get(i,j) + Activity.get(i - 1, j) + Activity.get(i + 1, j) + Activity.get(i, j - 1) + Activity.get(i, j + 1) +
 					Activity.get(i - 1, j - 1) + Activity.get(i + 1, j + 1) + Activity.get(i + 1, j - 1) + Activity.get(i - 1, j + 1);
 
-				if (Activity.get(i, j) == 1.0f && sum == 8.0f)
+				if( sum == 9 * 255)
 				{
-					Output.set(i, j, 0.0f);
+					Output.set(i, j, 0);
 				}
 			}
 		break;
-
 	}
 }
 
@@ -151,13 +153,13 @@ void ImageHelper::MedianFilter(const frame& Input, frame& Output)
 	for (int i = 0; i < Output.nFrameWidth; i++)
 		for (int j = 0; j < Output.nFrameHeight; j++)
 		{
-			std::vector<float> v(25, 0);
+			std::vector<uint8_t> v(25, 0);
 
 			for (int n = -2; n < +3; n++)
 				for (int m = -2; m < +3; m++)
 					v.push_back(Input.get(i + n, j + m));
 
-			std::sort(v.begin(), v.end(), std::greater<float>());
+			std::sort(v.begin(), v.end(), std::greater<uint8_t>());
 			Output.set(i, j, v[12]);
 		}
 }
@@ -167,28 +169,29 @@ void ImageHelper::Adaptive(const frame& Input, frame& Output, const float Adapti
 	for (int i = 0; i < Output.nFrameWidth; i++)
 		for (int j = 0; j < Output.nFrameHeight; j++)
 		{
-			float fRegionSum = 0.0f;
+			int fRegionSum = 0;
 
 			for (int n = -2; n < +3; n++)
 				for (int m = -2; m < +3; m++)
 					fRegionSum += Input.get(i + n, j + m);
 
 			fRegionSum /= 25.0f;
-			Output.set(i, j, Input.get(i, j) > (fRegionSum * AdaptiveBias) ? 1.0f : 0.0f);
+			Output.set(i, j, Input.get(i, j) + AdaptiveBias > fRegionSum ? 255 : 0);
 		}
 }
 
-void ImageHelper::Otsu(const frame& Input, frame& Output, float& ThresholdValue)
+void ImageHelper::Otsu(const frame& Input, frame& Output, uint8_t& ThresholdValue)
 {
 	std::vector<int> histogram(256, 0);
 	float threshold_otsu = 0;
 	int total = Output.nFrameWidth * Output.nFrameHeight;
-	int wb = 0, wf = 0, sumb = 0, sum = 0;
+	int wb = 0, wf = 0;
+	uint64_t sumb = 0, sum = 0;
 	double  otsu_max = 0, mb, mf, between;
 	for (int i = 0; i < Output.nFrameWidth; i++)
 		for (int j = 0; j < Output.nFrameHeight; j++)
 		{
-			auto pos = (Input.get(i, j) * 255);
+			auto pos = static_cast<uint64_t>(Input.get(i, j));
 			sum += pos;
 			histogram.at(pos)++;
 		}
@@ -207,7 +210,7 @@ void ImageHelper::Otsu(const frame& Input, frame& Output, float& ThresholdValue)
 			threshold_otsu = i;
 		}
 	}
-	ThresholdValue = threshold_otsu / 255;
+	ThresholdValue = threshold_otsu;
 	// Perform threshold per pixel
 	thresholdBinarization(Input, Output, ThresholdValue);
 }
@@ -266,11 +269,11 @@ float ImageHelper::GetValueInterpolated(IImgaeProcessor::INTERPOLATION Interpol,
 	return result;
 }
 
-void ImageHelper::thresholdBinarization(const frame& input, frame& output, const float ThresholdValue)
+void ImageHelper::thresholdBinarization(const frame& input, frame& output, const uint8_t ThresholdValue)
 {
 	for (int i = 0; i < output.nFrameWidth; i++)
 		for (int j = 0; j < output.nFrameHeight; j++)
-			output.set(i, j, input.get(i, j) >= ThresholdValue ? 1.0f : 0.0f);
+			output.set(i, j, input.get(i, j) >= ThresholdValue ? 255 : 0);
 }
 
 #undef _USE_MATH_DEFINES

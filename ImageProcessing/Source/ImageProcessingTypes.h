@@ -3,7 +3,7 @@
 
 struct frame
 {
-	float* pixels = nullptr;
+	uint8_t* pixels = nullptr;
 	int nFrameWidth;
 	int nFrameHeight;
 
@@ -15,10 +15,7 @@ struct frame
 
 	frame(int Width, int Height)
 	{
-		nFrameWidth = Width;
-		nFrameHeight = Height;
-		pixels = new float[nFrameWidth * nFrameHeight];
-		std::memset(pixels, 0, nFrameWidth * nFrameHeight * sizeof(float));
+		resize(Width, Height);
 	}
 
 	frame(const frame& other) {
@@ -29,7 +26,7 @@ struct frame
 		nFrameWidth = other.nFrameWidth;
 		nFrameHeight = other.nFrameHeight;
 
-		pixels = new float[nFrameWidth * nFrameHeight];
+		pixels = new uint8_t[nFrameWidth * nFrameHeight];
 		std::copy(other.pixels, other.pixels + nFrameWidth * nFrameHeight, pixels);
 	}
 
@@ -42,14 +39,14 @@ struct frame
 	}
 
 
-	float get(int x, int y) const
+	uint8_t get(int x, int y) const
 	{
 		if (x >= 0 && x < nFrameWidth && y >= 0 && y < nFrameHeight)
 		{
 			return pixels[y * nFrameWidth + x];
 		}
 		else
-			return 0.0f;
+			return 0;
 	}
 
 	void set(int x, int y, float p)
@@ -72,9 +69,21 @@ struct frame
 			{
 				delete[] pixels;
 			}
-			pixels = new float[nFrameWidth * nFrameHeight];
+			pixels = new uint8_t[nFrameWidth * nFrameHeight];
 		}
 
 		std::copy(other.pixels, other.pixels + nFrameWidth * nFrameHeight, pixels);
+	}
+
+	void resize(int Width, int Height)
+	{
+		if (pixels)
+		{
+			delete[] pixels;
+		}
+		nFrameWidth = Width;
+		nFrameHeight = Height;
+		pixels = new uint8_t[nFrameWidth * nFrameHeight];
+		std::memset(pixels, 0, nFrameWidth * nFrameHeight * sizeof(uint8_t));
 	}
 };

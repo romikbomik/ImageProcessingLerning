@@ -53,6 +53,7 @@
 #include "escapi.h"
 #include "ImageProcessingTypes.h"
 #include <ImageHelper.h>
+#include <ImageHelperOpenCV.h>
 #include <ImageProcessingInterface.h>
 #include <memory>
 
@@ -89,8 +90,8 @@ public:
 	frame input = frame(nFrameWidth, nFrameHeight);
 	frame output = frame(nFrameWidth, nFrameHeight);
 	frame prev_input = frame(nFrameWidth, nFrameHeight);
-
-	std::unique_ptr<ImageProcessingInterface> ImageProcessor = std::make_unique<ImageHelper>();
+	std::string ImplementationLibraryName = "Open CV implementation";
+	std::unique_ptr<ImageProcessingInterface> ImageProcessor = std::make_unique<ImageHelperOpenCV>();
 
 public:
 	bool OnUserCreate() override
@@ -110,7 +111,7 @@ public:
 		for (int i = 0; i < nFrameWidth; i++)
 			for (int j = 0; j < nFrameHeight; j++)
 			{
-				int c = (int)std::min(std::max(0.0f, f.pixels[j * nFrameWidth + i] * 255.0f), 255.0f);
+				int c = (int)std::min(std::max(0, static_cast<int>(f.pixels[j * nFrameWidth + i])), 255);
 				Draw(x + i, y + j, olc::Pixel(c, c, c));
 			}
 	}
@@ -123,12 +124,13 @@ public:
 	IImgaeProcessor::INTERPOLATION interpol = IImgaeProcessor::INTERPOLATION::NEAREST_NEIGHBOR;
 	int nMorphCount = 1;
 
-	float fThresholdValue = 0.5f;
+	uint8_t fThresholdValue = 127;
 	float fLowPassRC = 0.1f;
 	float fAdaptiveBias = 1.1f;
 	float fAngle = 0.0f;
 
 	std::vector<float> pConvoKernel = IImgaeProcessor::kernel_blur;
+
 
 
 	bool OnUserUpdate(float fElapsedTime) override
@@ -142,7 +144,7 @@ public:
 				RGBint col;
 				int id = y * capture.mWidth + x;
 				col.rgb = capture.mTargetBuf[id];
-				input.pixels[y * nFrameWidth + x] = (float)col.c[1] / 255.0f;
+				input.pixels[y * nFrameWidth + x] = (col.c[0] +col.c[1] + col.c[2]) / 3;
 			}
 
 		if (GetKey(olc::Key::K1).bReleased) algo = THRESHOLD;
@@ -155,6 +157,19 @@ public:
 		if (GetKey(olc::Key::K8).bReleased) algo = ADAPTIVE;
 		if (GetKey(olc::Key::K9).bReleased) algo = OTSU;
 		if (GetKey(olc::Key::Q).bReleased) algo = ROTATE;
+		if (GetKey(olc::Key::P).bReleased) {
+			if (dynamic_cast<ImageHelperOpenCV*>(ImageProcessor.get()) == nullptr)
+			{
+				ImageProcessor = std::make_unique<ImageHelperOpenCV>();
+				ImplementationLibraryName = "Open CV implementation";
+			}
+			else if (dynamic_cast<ImageHelper*>(ImageProcessor.get()) == nullptr)
+			{
+				ImageProcessor = std::make_unique<ImageHelper>();
+				ImplementationLibraryName = "Custom library implementation";
+			}
+			output = input;
+		}
 
 
 		switch (algo)
@@ -162,10 +177,10 @@ public:
 		case THRESHOLD:
 
 			// Respond to user input
-			if (GetKey(olc::Key::Z).bHeld) fThresholdValue -= 0.1f * fElapsedTime;
-			if (GetKey(olc::Key::X).bHeld) fThresholdValue += 0.1f * fElapsedTime;
-			if (fThresholdValue > 1.0f) fThresholdValue = 1.0f;
-			if (fThresholdValue < 0.0f) fThresholdValue = 0.0f;
+			if (GetKey(olc::Key::Z).bHeld) fThresholdValue -= 1;
+			if (GetKey(olc::Key::X).bHeld) fThresholdValue += 1;
+			if (fThresholdValue > 255) fThresholdValue = 255;
+			if (fThresholdValue < 0) fThresholdValue = 0.;
 
 			ImageProcessor->ThresholdMethod(input, output, fThresholdValue);
 			break;
@@ -220,10 +235,10 @@ public:
 
 		case ADAPTIVE:
 			// Respond to user input
-			if (GetKey(olc::Key::Z).bHeld) fAdaptiveBias -= 0.1f * fElapsedTime;
-			if (GetKey(olc::Key::X).bHeld) fAdaptiveBias += 0.1f * fElapsedTime;
-			if (fAdaptiveBias > 1.5f) fAdaptiveBias = 1.5f;
-			if (fAdaptiveBias < 0.5f) fAdaptiveBias = 0.5f;
+			if (GetKey(olc::Key::Z).bHeld) fAdaptiveBias -= 0.5f;
+			if (GetKey(olc::Key::X).bHeld) fAdaptiveBias += 0.5f;
+			if (fAdaptiveBias > 20.f) fAdaptiveBias = 20.f;
+			if (fAdaptiveBias < -20.f) fAdaptiveBias = -20.f;
 
 			ImageProcessor->Adaptive(input, output, fAdaptiveBias);
 			break;
@@ -310,7 +325,7 @@ public:
 		default:
 			break;
 		}
-
+		DrawString(10, startPos + 50, ImplementationLibraryName);
 		if (GetKey(olc::Key::ESCAPE).bPressed) return false;
 		return true;
 	}
